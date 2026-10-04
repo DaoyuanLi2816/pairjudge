@@ -1,215 +1,168 @@
-"""Loaders that normalize preference data into one canonical schema.
-
-Canonical columns (one row = one conversation):
-
-- ``id``: str
-- ``prompt``: list[str] — user prompt per round
-- ``response_a`` / ``response_b``: list[str] — candidate responses per round
-- ``winner_model_a`` / ``winner_model_b`` / ``winner_tie``: float — one-hot
-  for human labels, arbitrary distribution for pseudo-labels
-
-Everything downstream (packing, training, judging) consumes this schema, so
-supporting a new dataset means writing one loader function.
-"""
+"""Validated canonical preference data; labels and conversation history are preserved."""
 
 from __future__ import annotations
 
 import json
 import random
-from typing import Iterable, Optional, Sequence
 
 import pandas as pd
 
-#: String encodings of an empty response as they appear in Chatbot Arena
-#: exports. A response equal to any of these is "empty" for labeling and
-#: guardrail purposes.
+from .validation import PAIR_COLUMNS, WINNER_COLUMNS, string_list, validate_frame
+
 EMPTY_RESPONSE_PATTERNS = ("[null]", "[]", "[ ]", "[  ]", '[""]', '["",""]')
 
-_LIST_COLUMNS = ("prompt", "response_a", "response_b")
-_WINNER_COLUMNS = ("winner_model_a", "winner_model_b", "winner_tie")
 
-
-def _is_empty(series: pd.Series) -> pd.Series:
+def _is_empty(series):
     return series.isin(EMPTY_RESPONSE_PATTERNS)
 
 
-def _last_assistant_reply(messages, column: str, row_index) -> str:
-    if isinstance(messages, (str, bytes, dict)):
-        raise ValueError(
-            f"{column} at row {row_index!r} must be a list of chat messages"
-        )
-    try:
-        reversed_messages = reversed(messages)
-    except TypeError as exc:
-        raise ValueError(
-            f"{column} at row {row_index!r} must be a list of chat messages"
-        ) from exc
-    for message in reversed_messages:
-        if isinstance(message, dict) and message.get("role") == "assistant":
-            content = message.get("content")
-            if not isinstance(content, str):
-                raise ValueError(
-                    f"{column} assistant content at row {row_index!r} must be a string"
-                )
-            return content
-    raise ValueError(f"{column} at row {row_index!r} has no assistant message")
-
-
 def load_arena_csv(
-    path_or_df,
-    drop_identical: bool = True,
-    relabel_empty: bool = True,
-) -> pd.DataFrame:
-    """Load a Chatbot-Arena-style CSV (LMSYS competition format).
+    path_or_df, drop_identical=False, relabel_empty=False, legacy_cleaning=False
+):
+    """Decode Arena lists without changing human labels.
 
-    Expects JSON-encoded list columns ``prompt``/``response_a``/``response_b``
-    and one-hot winner columns.
-
-    Cleaning rules (from the gold-medal solution):
-
-    - rows where *both* responses are empty are dropped (no signal);
-    - rows where the two responses are byte-identical are dropped when
-      ``drop_identical`` — the label is noise there, and inference handles
-      that case with a guardrail instead (:func:`empty_and_identical_masks`);
-    - rows where exactly one response is empty are relabeled so the non-empty
-      side wins when ``relabel_empty`` — annotators almost always prefer *any*
-      answer over a blank one, and the few contrary labels are noise.
+    Historical dropping/relabeling requires ``legacy_cleaning=True`` and explicit
+    ``drop_identical``/``relabel_empty`` flags. Null content is otherwise invalid.
     """
     df = (
-        path_or_df
+        path_or_df.copy()
         if isinstance(path_or_df, pd.DataFrame)
         else pd.read_csv(path_or_df, encoding="utf-8")
     )
-    df = df.copy()
-
-    a_empty, b_empty = _is_empty(df["response_a"]), _is_empty(df["response_b"])
-    df = df[~(a_empty & b_empty)]
-    if drop_identical:
-        df = df[~(df["response_a"] == df["response_b"])]
-
-    if relabel_empty:
-        a_empty, b_empty = _is_empty(df["response_a"]), _is_empty(df["response_b"])
-        df.loc[a_empty, list(_WINNER_COLUMNS)] = [0.0, 1.0, 0.0]
-        df.loc[b_empty, list(_WINNER_COLUMNS)] = [1.0, 0.0, 0.0]
-
-    for col in _LIST_COLUMNS:
-        df[col] = df[col].apply(json.loads)
-
+    if (drop_identical or relabel_empty) and not legacy_cleaning:
+        raise ValueError("cleaning/relabeling requires explicit legacy_cleaning=True")
+    if legacy_cleaning:
+        a_empty, b_empty = _is_empty(df.response_a), _is_empty(df.response_b)
+        df = df[~(a_empty & b_empty)].copy()
+        if drop_identical:
+            df = df[df.response_a != df.response_b].copy()
+        if relabel_empty:
+            df.loc[_is_empty(df.response_a), list(WINNER_COLUMNS)] = [0.0, 1.0, 0.0]
+            df.loc[_is_empty(df.response_b), list(WINNER_COLUMNS)] = [1.0, 0.0, 0.0]
+    for column in PAIR_COLUMNS:
+        df[column] = df[column].map(
+            lambda value: json.loads(value) if isinstance(value, str) else value
+        )
+    if legacy_cleaning:
+        for index, row in df.iterrows():
+            for column in ("response_a", "response_b"):
+                if row[column] == [] or row[column] == [None]:
+                    df.at[index, column] = [""] * len(row.prompt)
     df = df.reset_index(drop=True)
     df["id"] = df["id"].astype(str)
+    validate_frame(df, label_mode="hard")
     return df
 
 
-def load_ultrafeedback(
-    path_or_df,
-    seed: int = 42,
-    dedup_by_prompt: bool = True,
-) -> pd.DataFrame:
-    """Convert an UltraFeedback-style chosen/rejected dataset to the canonical schema.
+def _chat_rounds(messages, row_index):
+    if not isinstance(messages, (list, tuple)):
+        raise ValueError(f"row {row_index}: expected a list of chat messages")
+    prompts, replies, systems = [], [], []
+    pending = None
+    for message in messages:
+        if not isinstance(message, dict) or not isinstance(message.get("content"), str):
+            raise ValueError(f"row {row_index}: message content must be a string")
+        role, text = message.get("role"), message["content"]
+        if role == "system" and not prompts and pending is None:
+            systems.append(text)
+        elif role == "user" and pending is None:
+            pending = text
+        elif role == "assistant" and pending is not None:
+            prefix = (
+                "[System]\n" + "\n".join(systems) + "\n[User]\n"
+                if systems and not prompts
+                else ""
+            )
+            prompts.append(prefix + pending)
+            replies.append(text)
+            pending = None
+        else:
+            raise ValueError(f"row {row_index}: unsupported or unaligned chat roles")
+    if not replies:
+        raise ValueError(f"row {row_index}: no assistant message")
+    if pending is not None:
+        raise ValueError(
+            f"row {row_index}: trailing user message has no assistant reply"
+        )
+    return prompts, replies
 
-    Each record has ``prompt`` (str) and ``chosen``/``rejected`` conversations
-    (lists of ``{"role", "content"}`` messages). The final assistant reply is
-    used, which handles the standard two-message format as well as conversations
-    with a system prompt or multiple turns.
-    The chosen/rejected pair is assigned to A/B *uniformly at random* (seeded)
-    so the resulting dataset is free of position bias by construction.
-    """
+
+def load_ultrafeedback(path_or_df, seed=42, dedup_by_prompt=False):
+    """Retain every aligned round and shared system context; randomize A/B positions."""
     df = (
         path_or_df
         if isinstance(path_or_df, pd.DataFrame)
         else pd.read_parquet(path_or_df)
     )
-    rng = random.Random(seed)
-
-    records = []
-    for row_index, row in df.iterrows():
-        if not isinstance(row["prompt"], str):
-            raise ValueError(f"prompt at row {row_index!r} must be a string")
-        chosen = [_last_assistant_reply(row["chosen"], "chosen", row_index)]
-        rejected = [_last_assistant_reply(row["rejected"], "rejected", row_index)]
-        if rng.random() > 0.5:
-            response_a, response_b, winner = chosen, rejected, "a"
-        else:
-            response_a, response_b, winner = rejected, chosen, "b"
+    rng, records = random.Random(seed), []
+    for index, row in df.iterrows():
+        if not isinstance(row.prompt, str):
+            raise ValueError(f"prompt at row {index} must be a string")
+        cp, chosen = _chat_rounds(row.chosen, index)
+        rp, rejected = _chat_rounds(row.rejected, index)
+        if cp != rp:
+            raise ValueError(f"chosen/rejected shared prompts differ at row {index}")
+        first_user = next(m["content"] for m in row.chosen if m["role"] == "user")
+        if row.prompt != first_user:
+            raise ValueError(f"prompt column differs from conversation at row {index}")
+        choose_a = rng.random() > 0.5
         records.append(
             {
-                "prompt": [row["prompt"]],
-                "response_a": response_a,
-                "response_b": response_b,
-                "winner_model_a": 1.0 if winner == "a" else 0.0,
-                "winner_model_b": 1.0 if winner == "b" else 0.0,
+                "prompt": cp,
+                "response_a": chosen if choose_a else rejected,
+                "response_b": rejected if choose_a else chosen,
+                "winner_model_a": float(choose_a),
+                "winner_model_b": float(not choose_a),
                 "winner_tie": 0.0,
             }
         )
-
-    out = pd.DataFrame(records)
+    out = pd.DataFrame(records, columns=list(PAIR_COLUMNS) + list(WINNER_COLUMNS))
     if dedup_by_prompt:
-        out["_key"] = out["prompt"].apply(lambda x: x[0])
-        out = out.drop_duplicates(subset=["_key"], ignore_index=True)
-        out = out.drop(columns=["_key"])
+        out["_key"] = out.prompt.map(tuple)
+        out = out.drop_duplicates("_key").drop(columns="_key").reset_index(drop=True)
     out["id"] = out.index.astype(str)
+    out.attrs["preprocessing"] = {
+        "dedup_by_prompt": bool(dedup_by_prompt),
+        "input_rows": len(df),
+        "output_rows": len(out),
+        "dropped_rows": len(df) - len(out),
+    }
+    validate_frame(out, label_mode="hard")
     return out
 
 
-def from_pairs(
-    prompts: Sequence[str],
-    responses_a: Sequence[str],
-    responses_b: Sequence[str],
-    winners: Optional[Iterable[str]] = None,
-) -> pd.DataFrame:
-    """Build a canonical dataframe from flat single-turn pairs.
-
-    ``winners`` entries are ``"a"``, ``"b"`` or ``"tie"``; omit for unlabeled
-    data (e.g. inference or pseudo-labeling inputs).
-    """
-    lengths = {
-        "prompts": len(prompts),
-        "responses_a": len(responses_a),
-        "responses_b": len(responses_b),
-    }
-    if len(set(lengths.values())) != 1:
+def from_pairs(prompts, responses_a, responses_b, winners=None):
+    """Construct single-turn pairs from equal-length sequences of strings."""
+    values = [
+        string_list(value, name)
+        for value, name in zip(
+            (prompts, responses_a, responses_b),
+            ("prompts", "responses_a", "responses_b"),
+        )
+    ]
+    if len({len(value) for value in values}) != 1:
         raise ValueError(
-            "prompts, responses_a and responses_b must have the same length, got "
-            + ", ".join(f"{name}={length}" for name, length in lengths.items())
+            "prompts, responses_a and responses_b must have the same length"
         )
     df = pd.DataFrame(
-        {
-            "prompt": [[p] for p in prompts],
-            "response_a": [[r] for r in responses_a],
-            "response_b": [[r] for r in responses_b],
-        }
+        {name: [[text] for text in value] for name, value in zip(PAIR_COLUMNS, values)}
     )
     if winners is not None:
-        winners = list(winners)
+        winners = string_list(winners, "winners")
         if len(winners) != len(df):
-            raise ValueError(
-                f"winners must match the pair count, got {len(winners)} winners "
-                f"for {len(df)} pairs"
-            )
-        bad = sorted({w for w in winners} - {"a", "b", "tie"})
-        if bad:
-            raise ValueError(f"winners must be 'a', 'b' or 'tie', got {bad}")
-        df["winner_model_a"] = [1.0 if w == "a" else 0.0 for w in winners]
-        df["winner_model_b"] = [1.0 if w == "b" else 0.0 for w in winners]
-        df["winner_tie"] = [1.0 if w == "tie" else 0.0 for w in winners]
+            raise ValueError("winners must match the pair count")
+        if set(winners) - {"a", "b", "tie"}:
+            raise ValueError("winners must be 'a', 'b' or 'tie'")
+        for name, label in zip(WINNER_COLUMNS, ("a", "b", "tie")):
+            df[name] = [float(winner == label) for winner in winners]
     df["id"] = df.index.astype(str)
     return df
 
 
-def empty_and_identical_masks(df: pd.DataFrame):
-    """Inference guardrail masks for degenerate pairs.
-
-    Returns boolean Series ``(a_empty, b_empty, identical)`` over raw (still
-    JSON-encoded) response columns. A judge should not be trusted on these
-    rows: an empty response loses against a non-empty one, and identical
-    responses are a tie. Overriding the model's prediction with fixed,
-    *calibrated* probabilities (not 0/1 — labels are noisy and log-loss
-    punishes overconfidence) is worth a measurable amount of log-loss; the
-    gold-medal solution used ``[0.04, 0.88, 0.08]`` for empty-vs-non-empty
-    and ``[0.06, 0.06, 0.88]`` for identical pairs.
-    """
+def empty_and_identical_masks(df):
+    """Historical raw-CSV diagnostics; inference never applies fixed probabilities."""
     return (
-        _is_empty(df["response_a"]),
-        _is_empty(df["response_b"]),
-        df["response_a"] == df["response_b"],
+        _is_empty(df.response_a),
+        _is_empty(df.response_b),
+        df.response_a == df.response_b,
     )

@@ -1,0 +1,8 @@
+{
+  "change": "FP32 merge and FP32 default inference replace the numerically divergent BF16 merged export",
+  "evidence": "merge-diagnostic-seed42.json: max probability difference .09745 and 14/64 verdict differences on validation",
+  "selection": "compare corrected FP32 full exports on validation; final test remains untouched",
+  "calibration": "none; temperature sweep diagnostic is not applied",
+  "splits": "unchanged; original manifest remains frozen",
+  "training": "two unchanged one-epoch seeds42/43,8000human training rows; export conversion is not retraining"
+}

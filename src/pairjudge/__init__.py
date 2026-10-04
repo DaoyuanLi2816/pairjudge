@@ -2,8 +2,8 @@
 
 Extracted and generalized from the 4th-place (gold medal, 4/1849) solution
 to the Kaggle competition "LMSYS — Chatbot Arena Human Preference
-Predictions". The packing defaults are byte-for-byte equivalent to the
-competition tokenization (golden-tested).
+Predictions". Explicit competition_v1 packing preserves the historical
+tokenization; new artifacts use balanced_v2 with content diagnostics.
 
 Core pieces:
 
@@ -26,7 +26,7 @@ from .data import (
 )
 from .packing import PackedExample, PackerConfig, PairPacker, hard_label
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "PairPacker",

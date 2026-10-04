@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 290" role="img" aria-label="Human-label training, separate pseudo-label pool, soft-label student, and swap inference">
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#60798e"/></marker></defs>
+<rect width="960" height="290" rx="16" fill="#f2f6fa"/>
+<g stroke="#60798e" stroke-width="2" fill="none" marker-end="url(#arrow)">
+<path d="M200 65H290"/><path d="M480 65H600"/><path d="M390 103V175"/><path d="M200 213H290"/><path d="M490 213H600"/>
+</g>
+<g font-family="system-ui,Segoe UI,sans-serif" text-anchor="middle">
+<rect x="20" y="24" width="180" height="82" rx="12" fill="white" stroke="#bfcede"/><text x="110" y="57" fill="#172e42" font-size="17">Human preferences</text><text x="110" y="83" fill="#526b80" font-size="13">A wins · B wins · tie</text>
+<rect x="290" y="24" width="190" height="82" rx="12" fill="#087f70"/><text x="385" y="57" fill="white" font-size="17">Trained teacher</text><text x="385" y="83" fill="#d4f4ec" font-size="13">head + tokenizer + contract</text>
+<rect x="600" y="24" width="330" height="82" rx="12" fill="#172e42"/><text x="765" y="57" fill="white" font-size="17">Single pass or aligned swap average</text><text x="765" y="83" fill="#d2deeb" font-size="13">probabilities + retained-content diagnostics</text>
+<rect x="20" y="175" width="180" height="82" rx="12" fill="white" stroke="#bfcede"/><text x="110" y="208" fill="#172e42" font-size="17">Separate pool</text><text x="110" y="234" fill="#526b80" font-size="13">no validation/test examples</text>
+<rect x="290" y="175" width="200" height="82" rx="12" fill="white" stroke="#087f70"/><text x="390" y="208" fill="#172e42" font-size="17">Teacher distributions</text><text x="390" y="234" fill="#526b80" font-size="13">full probabilities + provenance</text>
+<rect x="600" y="175" width="330" height="82" rx="12" fill="white" stroke="#087f70"/><text x="765" y="208" fill="#172e42" font-size="17">Soft-label student</text><text x="765" y="234" fill="#526b80" font-size="13">KL training · separate human evaluation</text>
+<text x="244" y="48" fill="#526b80" font-size="13">CE</text><text x="542" y="197" fill="#526b80" font-size="13">KL</text>
+</g></svg>

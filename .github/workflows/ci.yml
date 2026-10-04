@@ -1,35 +1,47 @@
 name: CI
-
 on:
   push:
     branches: [main]
   pull_request:
-
 permissions:
   contents: read
-
 jobs:
-  test:
+  core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        python: ['3.9', '3.14']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e . pytest
+      - run: python -c "import importlib.util; assert importlib.util.find_spec('torch') is None"
+      - run: pytest -q tests/test_data.py tests/test_packing.py tests/test_judge.py::TestSwapAverage tests/test_training.py::TestConfig
+      - run: pairjudge --version
+  model:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.12", "3.14"]
+        include:
+          - python: '3.10'
+            torch: '2.6.0'
+            packages: 'transformers==4.57.6 peft==0.18.1 accelerate==1.12.0'
+          - python: '3.12'
+            torch: '2.14.1'
+            packages: 'transformers==5.18.0 peft==0.21.2 accelerate==1.15.0'
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-      - name: Install (CPU torch)
-        run: |
-          python -m pip install --upgrade pip
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -e .[test]
-      - name: Run tests
-        run: pytest -q --cov=pairjudge --cov-report=term-missing
-
+          python-version: ${{ matrix.python }}
+      - run: pip install torch==${{ matrix.torch }} --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -e '.[test]' ${{ matrix.packages }}
+      - run: pytest -q --cov=pairjudge --cov-report=term-missing
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -37,21 +49,19 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
-          cache: pip
-      - run: python -m pip install ruff
-      - run: ruff check src tests
-      - run: ruff format --check src tests
-
+          python-version: '3.12'
+      - run: pip install ruff
+      - run: ruff check src tests examples/public_judge.py scripts
+      - run: ruff format --check src tests examples/public_judge.py scripts
   package:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
-          cache: pip
-      - run: python -m pip install build twine
+          python-version: '3.12'
+      - run: pip install build twine
       - run: python -m build
       - run: twine check dist/*
+      - run: python scripts/check_distributions.py dist

@@ -1,10 +1,16 @@
 import numpy as np
 import pandas as pd
 
+from pairjudge import PackerConfig
 from pairjudge.pseudo_label import pseudo_label
 
 
 class StubJudge:
+    metadata = {"resolved_revision": "a" * 40, "artifact_sha256": "b" * 64}
+
+    class packer:
+        config = PackerConfig(max_length=256)
+
     def predict_proba(self, df, swap_debias=False, batch_size=4):
         assert batch_size == 8
         assert swap_debias
@@ -25,3 +31,5 @@ def test_pseudo_label_adds_probabilities_without_mutating_input():
     assert out["winner_model_a"].tolist() == [0.7, 0.7]
     assert out["winner_model_b"].tolist() == [0.2, 0.2]
     assert out["winner_tie"].tolist() == [0.1, 0.1]
+    assert out.attrs["pairjudge_teacher"]["model_revision"] == "a" * 40
+    assert out.attrs["pairjudge_teacher"]["mode"] == "swap_average"

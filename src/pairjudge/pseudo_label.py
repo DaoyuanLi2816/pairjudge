@@ -21,13 +21,15 @@ Run from the command line::
 from __future__ import annotations
 
 import argparse
+import json
+from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
 import pandas as pd
 
 from .judge import PairwiseJudge
-from .packing import PackerConfig
 
 
 def pseudo_label(
@@ -42,6 +44,17 @@ def pseudo_label(
     out["winner_model_a"] = proba[:, 0]
     out["winner_model_b"] = proba[:, 1]
     out["winner_tie"] = proba[:, 2]
+    out.attrs["pairjudge_teacher"] = {
+        "generated_utc": datetime.now(timezone.utc).isoformat(),
+        "model_revision": judge.metadata.get("resolved_revision"),
+        "artifact_sha256": judge.metadata.get("artifact_sha256"),
+        "source": judge.metadata.get("source", {}),
+        "class_order": ["a_wins", "b_wins", "tie"],
+        "packer": asdict(judge.packer.config),
+        "mode": "swap_average" if swap_debias else "single",
+        "dtype": judge.metadata.get("dtype"),
+        "labels": "teacher probabilities, not independent human annotations",
+    }
     return out
 
 
@@ -52,28 +65,39 @@ def main(argv: Optional[List[str]] = None) -> None:
         "--data", required=True, help="Canonical-schema parquet to label"
     )
     parser.add_argument("--out", required=True, help="Output parquet path")
-    parser.add_argument("--max-length", type=int, default=3072)
+    parser.add_argument("--revision")
+    parser.add_argument("--device", default="auto")
+    parser.add_argument("--offline", action="store_true")
     parser.add_argument("--batch-size", type=int, default=4)
-    parser.add_argument("--load-in-8bit", action="store_true")
     parser.add_argument(
         "--swap-debias",
         action="store_true",
-        help="Score each pair in both orders (2x compute, position-bias-free labels)",
+        help="Average both orders after exchanging A/B columns (two passes)",
     )
     args = parser.parse_args(argv)
 
+    output_path = Path(args.out)
+    if (
+        output_path.exists()
+        or output_path.with_suffix(output_path.suffix + ".json").exists()
+    ):
+        raise FileExistsError("refusing to overwrite pseudo-label output or provenance")
+
     judge = PairwiseJudge.from_pretrained(
         args.model,
-        packer_config=PackerConfig(max_length=args.max_length),
-        load_in_8bit=args.load_in_8bit,
+        revision=args.revision,
+        device=args.device,
+        local_files_only=args.offline,
     )
     df = pd.read_parquet(args.data)
     out = pseudo_label(
         judge, df, batch_size=args.batch_size, swap_debias=args.swap_debias
     )
-    output_path = Path(args.out)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     out.to_parquet(output_path, index=False)
+    output_path.with_suffix(output_path.suffix + ".json").write_text(
+        json.dumps(out.attrs["pairjudge_teacher"], indent=2), encoding="utf-8"
+    )
     print(f"Wrote {len(out)} pseudo-labeled rows to {output_path}")
 
 

@@ -1,0 +1,68 @@
+{
+  "records": [
+    {
+      "id": "repeated",
+      "prompt": [
+        "Why does ice float?"
+      ],
+      "response_a": [
+        "Its crystal structure lowers its density."
+      ],
+      "response_b": [
+        "Cold objects always rise."
+      ]
+    },
+    {
+      "id": "repeated",
+      "prompt": [
+        "Explain gravity simply."
+      ],
+      "response_a": [
+        "Mass attracts mass."
+      ],
+      "response_b": [
+        "Objects fall because they want to rest."
+      ]
+    },
+    {
+      "id": "unicode",
+      "prompt": [
+        "Explain photosynthesis.",
+        "Why is sunlight needed?"
+      ],
+      "response_a": [
+        "Plants use light to make sugars.",
+        "Light supplies energy for chemical reactions."
+      ],
+      "response_b": [
+        "Plants turn rocks into oxygen.",
+        "It is only needed to keep plants warm."
+      ]
+    }
+  ],
+  "cpu_swap_probabilities": [
+    [
+      0.2902122437953949,
+      0.30306392908096313,
+      0.4067237973213196
+    ],
+    [
+      0.30688565969467163,
+      0.3158379793167114,
+      0.37727636098861694
+    ],
+    [
+      0.3350847065448761,
+      0.3388717770576477,
+      0.3260434865951538
+    ]
+  ],
+  "cpu_tolerance": 0.0002,
+  "artifact_sha256": "d44941737da183539449e5a0fd46681d55e0f0c8422573722fdb21b09997e012",
+  "reference_stack": {
+    "transformers": "4.57.6",
+    "torch": "2.6.0+cu124",
+    "dtype": "float32"
+  },
+  "reason_for_tolerance": "Cross-version/CPU math may differ; exact local reload and CLI separately checked at 1e-7."
+}

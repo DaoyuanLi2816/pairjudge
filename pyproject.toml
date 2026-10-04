@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pairjudge"
-version = "0.2.0"
-description = "Train and serve pairwise LLM judges (A/B/tie) with budget-aware multi-turn packing and position-bias correction"
+version = "0.3.0"
+description = "Train and use verified pairwise preference judges with multi-turn packing and swap diagnostics"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
@@ -38,28 +38,36 @@ dependencies = [
 
 [project.optional-dependencies]
 # Inference: load a trained judge and predict preferences.
-# accelerate is required by the default device_map="auto" load path.
-judge = ["torch", "transformers>=4.46", "accelerate"]
+# Single CPU or CUDA device; no automatic multi-device placement.
+judge = ["torch>=2.6,<3", "transformers>=4.57.6,<6", "huggingface-hub>=0.36.2,<2", "safetensors>=0.4.3"]
 # Training: fine-tune a judge with LoRA on your own preference data.
 train = [
-    "torch",
-    "transformers>=4.46",
-    "peft",
-    "datasets",
-    "accelerate",
-    "scikit-learn",
+    "torch>=2.6,<3",
+    "transformers>=4.57.6,<6",
+    "huggingface-hub>=0.36.2,<2",
+    "peft>=0.18.1,<0.22",
+    "accelerate>=1.12,<2",
+    "scikit-learn>=1.4",
+    "pyarrow>=15",
 ]
 test = [
     "pytest",
     "pytest-cov",
     "ruff",
-    "torch",
-    "transformers>=4.46",
-    "scikit-learn",
+    "torch>=2.6,<3",
+    "transformers>=4.57.6,<6",
+    "peft>=0.18.1,<0.22",
+    "accelerate>=1.12,<2",
+    "scikit-learn>=1.4",
+    "pyarrow>=15",
 ]
+
+[project.scripts]
+pairjudge = "pairjudge.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/DaoyuanLi2816/pairjudge"
+Documentation = "https://daoyuanli2816.github.io/pairjudge/"
 Repository = "https://github.com/DaoyuanLi2816/pairjudge"
 Issues = "https://github.com/DaoyuanLi2816/pairjudge/issues"
 Changelog = "https://github.com/DaoyuanLi2816/pairjudge/blob/main/CHANGELOG.md"

@@ -1,0 +1,10 @@
+{
+  "rows": 64,
+  "dtype": "cuda bfloat16 backbone; adapter float32 LoRA",
+  "max_abs": 0.09745174646377563,
+  "mean_abs": 0.03341894969344139,
+  "p95_abs": 0.07706249505281448,
+  "verdict_disagreements": 14,
+  "use": "validation only; no test selection",
+  "limitations": "BF16 merge rounds adapter updates into base weights; do not assume bit equality"
+}
