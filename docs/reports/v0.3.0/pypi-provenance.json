@@ -1,0 +1,34 @@
+{
+  "pairjudge-0.3.0-py3-none-any.whl": {
+    "url": "https://pypi.org/integrity/pairjudge/0.3.0/pairjudge-0.3.0-py3-none-any.whl/provenance",
+    "entries": [
+      {
+        "publisher": {
+          "environment": null,
+          "kind": "GitHub",
+          "repository": "DaoyuanLi2816/pairjudge",
+          "workflow": "release.yml"
+        },
+        "predicate_type": "https://docs.pypi.org/attestations/publish/v1",
+        "subject_sha256": "67a2793e825d6a765576ed38eefe785613a6445924a65a5402d2a905ffefdb90"
+      }
+    ],
+    "note": "Public provenance/subject inspected; not a substitute for model quality evaluation."
+  },
+  "pairjudge-0.3.0.tar.gz": {
+    "url": "https://pypi.org/integrity/pairjudge/0.3.0/pairjudge-0.3.0.tar.gz/provenance",
+    "entries": [
+      {
+        "publisher": {
+          "environment": null,
+          "kind": "GitHub",
+          "repository": "DaoyuanLi2816/pairjudge",
+          "workflow": "release.yml"
+        },
+        "predicate_type": "https://docs.pypi.org/attestations/publish/v1",
+        "subject_sha256": "13b11ecd22b45ee5ee388a53aa05259145275356fa181684e32ced1afbdd4a39"
+      }
+    ],
+    "note": "Public provenance/subject inspected; not a substitute for model quality evaluation."
+  }
+}

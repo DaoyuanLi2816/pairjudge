@@ -1,0 +1,13 @@
+{
+  "tag": "v0.3.0",
+  "release_commit": "59f53c632f2063f2331cd69e30156300551364b5",
+  "url": "https://github.com/DaoyuanLi2816/pairjudge/releases/tag/v0.3.0",
+  "draft": false,
+  "published_at": "2026-10-04T11:02:13Z",
+  "public_anonymous_downloads_sha256": {
+    "pairjudge-0.3.0-py3-none-any.whl": "67a2793e825d6a765576ed38eefe785613a6445924a65a5402d2a905ffefdb90",
+    "pairjudge-0.3.0.tar.gz": "13b11ecd22b45ee5ee388a53aa05259145275356fa181684e32ced1afbdd4a39",
+    "SHA256SUMS": "a87b720a3a285872a3ad0d9b45fd573220cc2f6d46af16acb5cda5aad97356e2"
+  },
+  "author_login": "DaoyuanLi2816"
+}

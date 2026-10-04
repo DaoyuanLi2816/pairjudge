@@ -53,3 +53,33 @@ Legacy loading still rejects missing classifier weights and conflicting model
 mapping. It does not invent a head-update receipt or establish model quality.
 Convert only artifacts whose training/source rights you can verify; train a
 new bundle when the old format/mapping is unknown.
+
+Some 0.2/external classifiers have opaque config names such as `LABEL_0`.
+Passing an order does not silently rewrite a conflicting model config. If you
+have established the actual trained column meanings, declare them in a **new
+copy** before the legacy call; retain all other config, weights, tokenizer and
+legal files:
+
+```python
+import json
+import shutil
+from pathlib import Path
+
+source = Path("known-legacy-directory")
+target = Path("declared-legacy-directory")  # copytree refuses an existing target
+order = ["a_wins", "b_wins", "tie"]  # use the verified original training order
+shutil.copytree(source, target)
+path = target / "config.json"
+config = json.loads(path.read_text(encoding="utf-8"))
+config["id2label"] = {str(i): label for i, label in enumerate(order)}
+config["label2id"] = {label: i for i, label in enumerate(order)}
+path.write_text(json.dumps(config, indent=2), encoding="utf-8")
+```
+
+Load that copy with `allow_legacy=True`, the same `order`, and the **complete
+original** `PackerConfig`. Confirm padding/special tokens and compare against
+the original environment's predictions before distribution. This is a caller
+declaration, not proof that an arbitrary external head was trained. An actual
+trained tiny classifier with noncanonical tie/A/B order passed this declared
+copy migration at 1e-7 tolerance (maximum difference zero); see
+[the receipt](reports/v0.3.0/legacy-migration-verification.json).

@@ -1,0 +1,26 @@
+{
+  "version": "0.3.0",
+  "release_commit": "59f53c632f2063f2331cd69e30156300551364b5",
+  "tag": "v0.3.0",
+  "release_url": "https://github.com/DaoyuanLi2816/pairjudge/releases/tag/v0.3.0",
+  "pypi_url": "https://pypi.org/project/pairjudge/0.3.0/",
+  "model_id": "DaoyuanLi/pairjudge-qwen2.5-0.5b-v0.3",
+  "model_revision": "aa9dfb488147c45572921a3a93d00864dc1f526d",
+  "documentation": "https://daoyuanli2816.github.io/pairjudge/",
+  "package_hashes": {
+    "pairjudge-0.3.0-py3-none-any.whl": "67a2793e825d6a765576ed38eefe785613a6445924a65a5402d2a905ffefdb90",
+    "pairjudge-0.3.0.tar.gz": "13b11ecd22b45ee5ee388a53aa05259145275356fa181684e32ced1afbdd4a39"
+  },
+  "ci_runs": {
+    "pull_request": 37196904948,
+    "release_commit_main": 37197106048,
+    "release": 37197349642,
+    "pages": 37197106041
+  },
+  "formal_pypi_train_user_tests": 12,
+  "anonymous_fresh_model_download_verified": true,
+  "platform_attestation_preserved": true,
+  "new_author": "Daoyuan Li",
+  "original_competition_and_reference_unchanged": true,
+  "no_remaining_publication_blocker": true
+}

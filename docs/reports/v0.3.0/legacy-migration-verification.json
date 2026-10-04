@@ -1,0 +1,14 @@
+{
+  "installed_version": "0.3.0",
+  "known_trained_classifier": true,
+  "opaque_mapping_rejected": true,
+  "explicit_mapping_in_new_copy_loaded": true,
+  "noncanonical_class_order": [
+    "tie",
+    "a_wins",
+    "b_wins"
+  ],
+  "maximum_absolute_probability_difference": 0.0,
+  "tolerance": 1e-07,
+  "scope": "Offline tiny GPT2 actual trained weights; no claim of unknown legacy model quality."
+}

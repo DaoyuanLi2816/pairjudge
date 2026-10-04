@@ -1,0 +1,14 @@
+{
+  "version": "0.3.0",
+  "pypi_sha256": {
+    "pairjudge-0.3.0-py3-none-any.whl": "67a2793e825d6a765576ed38eefe785613a6445924a65a5402d2a905ffefdb90",
+    "pairjudge-0.3.0.tar.gz": "13b11ecd22b45ee5ee388a53aa05259145275356fa181684e32ced1afbdd4a39"
+  },
+  "model_id": "DaoyuanLi/pairjudge-qwen2.5-0.5b-v0.3",
+  "model_revision": "aa9dfb488147c45572921a3a93d00864dc1f526d",
+  "artifact_sha256": "d44941737da183539449e5a0fd46681d55e0f0c8422573722fdb21b09997e012",
+  "anonymous_fresh_cache": true,
+  "api_single_batch_swap_offline": true,
+  "cli_single_batch_ids_order": true,
+  "cpu_tolerance": 0.0002
+}

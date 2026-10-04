@@ -69,3 +69,37 @@ filename/binding and platform attestations are preserved.
 Attribution uses Daoyuan Li's existing repository identity. No extra author or
 coauthor is added. Original competition files and golden reference are
 unchanged; Qwen/Alibaba Cloud and Arena notices remain in the model repository.
+
+## Published and independently verified
+
+Release `v0.3.0` points to `59f53c632f2063f2331cd69e30156300551364b5`.
+PR #22 and default-branch CI passed both core Python versions (61 tests each)
+and both model stacks (83 tests each). Release workflow run `37197349642`
+completed qualification, OIDC publication and public verification successfully.
+GitHub Pages deployed all eight English pages; direct public HTTP checks passed.
+
+Formal PyPI `pairjudge==0.3.0` contains the exact qualified GitHub wheel/sdist:
+
+- wheel SHA256: `67a2793e825d6a765576ed38eefe785613a6445924a65a5402d2a905ffefdb90`
+- sdist SHA256: `13b11ecd22b45ee5ee388a53aa05259145275356fa181684e32ced1afbdd4a39`
+- public model revision: `aa9dfb488147c45572921a3a93d00864dc1f526d`
+
+Independent verification started from an environment without PairJudge, then
+installed the formal PyPI package outside the checkout. Anonymous fresh-cache
+model download, manifest/file hashes, CPU reference tolerance, API/CLI batch
+IDs/order, swap and offline reload passed. Twelve actual hard/soft training,
+artifact and user-path tests also passed against the formal installed package.
+The local browser demo runs that installed version and the public checkpoint;
+empty-answer errors and long-input truncation were checked. A mobile viewport
+override did not take effect in the browser tool; no device-size validation
+is claimed. Opaque legacy class configs require explicit declaration in a new
+copy; that migration was executed on trained noncanonical-class tiny weights.
+
+See [PyPI verification](reports/v0.3.0/pypi-public-verification.json),
+[GitHub bytes](reports/v0.3.0/github-release-verification.json),
+[model download](reports/v0.3.0/model-public-verification.json) and
+[PyPI platform provenance](reports/v0.3.0/pypi-provenance.json).
+The latter identifies the existing `release.yml` Trusted Publisher and its
+subject digests; it does not certify model quality. Post-publication receipts
+are committed separately; the released tag, package bytes and model revision
+remain unchanged.
