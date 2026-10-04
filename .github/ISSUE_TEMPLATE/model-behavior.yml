@@ -1,0 +1,20 @@
+name: Judge behavior
+description: A preference mismatch or domain limitation
+body:
+  - type: textarea
+    id: model
+    attributes:
+      label: Exact model revision and inference settings
+      description: Include single/swap mode, dtype and packing diagnostics.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Authorized example or dataset ID
+      description: Issues are public. Do not share personal, restricted or private conversations.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Human preference evidence and explanation
+      description: A disagreement alone does not establish that either judge or annotation is correct.

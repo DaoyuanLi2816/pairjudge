@@ -1,0 +1,43 @@
+{
+  "selected_seed": 43,
+  "criterion": "lowest deployed FP32 full-bundle validation log-loss; no temperature applied",
+  "frozen_utc": "2026-10-04T10:20:57.339921+00:00",
+  "validation": {
+    "42": {
+      "seed": 42,
+      "rows": 769,
+      "log_loss": 1.0963889360427856,
+      "accuracy": 0.3810143042912874,
+      "counts": [
+        305,
+        204,
+        260
+      ],
+      "dtype": "float32",
+      "artifact_sha256": "51aefc0b2880f52773bcc9dda6890b945d5aa8f472c6bffc189c08faf783ec46",
+      "fp32_merge_max_abs": 1.3560056686401367e-05,
+      "fp32_merge_mean_abs": 2.9318809993128525e-06,
+      "merge_tolerance": 3e-05
+    },
+    "43": {
+      "seed": 43,
+      "rows": 769,
+      "log_loss": 1.0824567079544067,
+      "accuracy": 0.4096228868660598,
+      "counts": [
+        390,
+        278,
+        101
+      ],
+      "dtype": "float32",
+      "artifact_sha256": "d44941737da183539449e5a0fd46681d55e0f0c8422573722fdb21b09997e012",
+      "fp32_merge_max_abs": 1.0699033737182617e-05,
+      "fp32_merge_mean_abs": 2.196524292230606e-06,
+      "merge_tolerance": 3e-05
+    }
+  },
+  "split_manifest_sha256": "28106a452c911228f89bfdbf802edfafab75e45f417f269ac65bc51d4dbf438d",
+  "test_status": "not evaluated at selection time",
+  "cpu_validation_diagnostic": "cancelled due to slow large CPU workload; no result used",
+  "bf16_merge_diagnostic": "retained separately; corrected FP32 merge required <3e-5 on 64 validation rows"
+}

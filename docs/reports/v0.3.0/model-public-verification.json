@@ -1,0 +1,19 @@
+{
+  "model_id": "DaoyuanLi/pairjudge-qwen2.5-0.5b-v0.3",
+  "revision": "aa9dfb488147c45572921a3a93d00864dc1f526d",
+  "anonymous_fresh_cache": true,
+  "cpu_max_abs_vs_reference": 0.0,
+  "manifest_sha256": "d44941737da183539449e5a0fd46681d55e0f0c8422573722fdb21b09997e012",
+  "weight_sha256": "f3cca2bbde8fd089677be597497e5d5a890acde935390d98ac5e5ff48cff495c",
+  "class_order": [
+    "a_wins",
+    "b_wins",
+    "tie"
+  ],
+  "packer_restored": true,
+  "cpu_swap_equivariance_tolerance": 1e-07,
+  "cuda_offline_from_public_cache": true,
+  "cuda_cpu_max_abs": 5.304813385009766e-06,
+  "cuda_dtype": "float32",
+  "cuda_swap_equivariance_tolerance": 1e-07
+}

@@ -56,14 +56,14 @@
     <g font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
       <text x="366" y="102" font-size="14" font-weight="700" fill="#f1f5f9">Budget-aware</text>
       <text x="366" y="120" font-size="14" font-weight="700" fill="#f1f5f9">packing</text>
-      <text x="366" y="142" font-size="11.5" fill="#94a3b8">prompt, A and B always</text>
-      <text x="366" y="158" font-size="11.5" fill="#94a3b8">survive truncation</text>
-      <text x="366" y="180" font-size="10.5" fill="#fcd34d" fill-opacity="0.9">byte-equal to the</text>
-      <text x="366" y="195" font-size="10.5" fill="#fcd34d" fill-opacity="0.9">gold-medal code</text>
+      <text x="366" y="142" font-size="11.5" fill="#94a3b8">content token retention</text>
+      <text x="366" y="158" font-size="11.5" fill="#94a3b8">inspect every cut</text>
+      <text x="366" y="180" font-size="10.5" fill="#fcd34d" fill-opacity="0.9">legacy format retains</text>
+      <text x="366" y="195" font-size="10.5" fill="#fcd34d" fill-opacity="0.9">gold-medal packing</text>
     </g>
   </g>
 
-  <!-- ===== card 2: position-bias correction ===== -->
+  <!-- ===== card 2: position-bias diagnostics ===== -->
   <g>
     <rect x="520" y="30" width="156" height="190" rx="12" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.13"/>
     <circle cx="550" cy="62" r="16" fill="#34d399" fill-opacity="0.14" stroke="#34d399" stroke-opacity="0.55" stroke-width="1.4"/>
@@ -74,12 +74,12 @@
       <path d="M 547 62.8 L 542 66 L 547 69.2"/>
     </g>
     <g font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
-      <text x="536" y="102" font-size="14" font-weight="700" fill="#f1f5f9">Position-bias</text>
-      <text x="536" y="120" font-size="14" font-weight="700" fill="#f1f5f9">correction</text>
+      <text x="536" y="102" font-size="14" font-weight="700" fill="#f1f5f9">Swap-order</text>
+      <text x="536" y="120" font-size="14" font-weight="700" fill="#f1f5f9">diagnostics</text>
       <text x="536" y="142" font-size="11.5" fill="#94a3b8">score both orders,</text>
-      <text x="536" y="158" font-size="11.5" fill="#94a3b8">average the verdicts</text>
+      <text x="536" y="158" font-size="11.5" fill="#94a3b8">align probabilities</text>
       <text x="536" y="180" font-size="10.5" fill="#fcd34d" fill-opacity="0.9">29.2% verdict flips</text>
-      <text x="536" y="195" font-size="10.5" fill="#fcd34d" fill-opacity="0.9">measured on Arena data</text>
+      <text x="536" y="195" font-size="10.5" fill="#fcd34d" fill-opacity="0.9">historical Arena study</text>
     </g>
   </g>
 

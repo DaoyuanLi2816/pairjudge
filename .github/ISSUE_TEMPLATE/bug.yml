@@ -1,0 +1,21 @@
+name: Software bug
+description: A reproducible loading, packing, training or CLI problem
+body:
+  - type: textarea
+    id: environment
+    attributes:
+      label: Versions and hardware
+      description: Python, pairjudge, Torch, Transformers, PEFT, OS and device
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction and actual error
+      description: Use synthetic or authorized text. Remove tokens and private paths.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior

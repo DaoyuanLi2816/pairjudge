@@ -10,7 +10,11 @@ train_path: ./input/lmsys-chatbot-arena/train.csv
 label_mode: hard
 
 model_name: Qwen/Qwen2.5-0.5B-Instruct
-max_length: 1024
+model_revision: 7ae557604adf67be50417f59c2c2f167def9a775
+max_length: 512
+device: auto
+dtype: auto
+gradient_checkpointing: true
 
 use_lora: true
 lora_r: 16
@@ -21,4 +25,4 @@ n_epochs: 1.0
 lr: 0.0002
 per_device_train_batch_size: 4
 gradient_accumulation_steps: 4
-bf16: true
+bf16: false

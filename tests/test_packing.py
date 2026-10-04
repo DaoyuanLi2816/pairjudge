@@ -17,14 +17,17 @@ def _one_hot(winner: str):
 
 
 class TestCompetitionEquivalence:
-    """The library's defaults must reproduce the gold-medal tokenization
+    """Explicit competition_v1 must reproduce the gold-medal tokenization
     byte for byte. `tests/reference_impl.py` is a verbatim copy of the
     competition code; 500 fuzzed conversations are compared against it."""
 
     @pytest.mark.parametrize("max_length", [128, 512, 2048])
     def test_matches_competition_reference(self, tokenizer, max_length):
         rng = random.Random(max_length)
-        packer = PairPacker(tokenizer, PackerConfig(max_length=max_length))
+        packer = PairPacker(
+            tokenizer,
+            PackerConfig(max_length=max_length, packing_format="competition_v1"),
+        )
 
         prompts, ras, rbs, winners = [], [], [], []
         for _ in range(500):
@@ -72,6 +75,13 @@ class TestBudgetInvariants:
         b_marker = tokenizer("### Response B:", add_special_tokens=False)["input_ids"]
         as_str = ",".join(map(str, decoded))
         assert ",".join(map(str, b_marker)) in as_str
+        b_content = tokenizer("unique-b-content", add_special_tokens=False)["input_ids"]
+        assert ",".join(map(str, b_content)) in as_str
+        assert all(
+            round_[name]["kept_tokens"] > 0
+            for round_ in packed.fields
+            for name in ("prompt", "response_a", "response_b")
+        )
         assert packed.truncated
         assert packed.rounds_kept == 1
 

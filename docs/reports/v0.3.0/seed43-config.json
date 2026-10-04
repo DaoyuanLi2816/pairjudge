@@ -1,0 +1,51 @@
+{
+  "bf16": false,
+  "device": "cuda:0",
+  "disable_attn_logit_softcapping": false,
+  "dtype": "bfloat16",
+  "eval_holdout": 0.05,
+  "gradient_accumulation_steps": 8,
+  "gradient_checkpointing": true,
+  "label_mode": "hard",
+  "label_order": [
+    "a_wins",
+    "b_wins",
+    "tie"
+  ],
+  "local_files_only": true,
+  "lora_alpha": 32,
+  "lora_dropout": 0.05,
+  "lora_r": 16,
+  "lora_target_modules": [
+    "q_proj",
+    "k_proj",
+    "v_proj",
+    "o_proj",
+    "gate_proj",
+    "up_proj",
+    "down_proj"
+  ],
+  "lr": 0.0001,
+  "max_length": 512,
+  "max_steps": 0,
+  "merge_adapter": true,
+  "model_name": "Qwen/Qwen2.5-0.5B-Instruct",
+  "model_revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+  "n_epochs": 1.0,
+  "num_workers": 0,
+  "optim": "adamw_torch",
+  "packer": {},
+  "per_device_eval_batch_size": 4,
+  "per_device_train_batch_size": 2,
+  "provenance": {
+    "dataset_id": "lmarena-ai/arena-human-preference-55k",
+    "dataset_license": "apache-2.0",
+    "dataset_revision": "18c298340948c0e7f7727399fd459cca6ce0ca6f",
+    "license": "apache-2.0",
+    "purpose": "public example trained on frozen human labels",
+    "split_manifest_sha256": "28106a452c911228f89bfdbf802edfafab75e45f417f269ac65bc51d4dbf438d"
+  },
+  "seed": 43,
+  "use_lora": true,
+  "warmup_steps": 20
+}

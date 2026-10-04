@@ -40,7 +40,9 @@ def arena_df():
 
 class TestLoadArenaCsv:
     def test_cleaning_rules(self, arena_df):
-        df = load_arena_csv(arena_df)
+        df = load_arena_csv(
+            arena_df, legacy_cleaning=True, drop_identical=True, relabel_empty=True
+        )
 
         ids = set(df["id"])
         assert "3" not in ids  # both empty -> dropped
@@ -62,37 +64,49 @@ class TestLoadArenaCsv:
         )
 
     def test_json_columns_decoded(self, arena_df):
-        df = load_arena_csv(arena_df)
+        df = load_arena_csv(arena_df, legacy_cleaning=True)
         row = df[df["id"] == "1"].iloc[0]
         assert row["prompt"] == ["q1"]
         assert row["response_a"] == ["good answer"]
 
     def test_relabel_can_be_disabled(self, arena_df):
-        df = load_arena_csv(arena_df, relabel_empty=False)
+        df = load_arena_csv(arena_df, legacy_cleaning=True, relabel_empty=False)
         row2 = df[df["id"] == "2"].iloc[0]
         assert row2["winner_tie"] == 1.0  # original (noisy) label kept
 
     def test_roundtrip_via_csv(self, arena_df, tmp_path):
         path = tmp_path / "train.csv"
         arena_df.to_csv(path, index=False)
-        df = load_arena_csv(str(path))
+        df = load_arena_csv(
+            str(path), legacy_cleaning=True, drop_identical=True, relabel_empty=True
+        )
         assert set(df["id"]) == {"1", "2", "5"}
 
 
 class TestLoadUltrafeedback:
     @pytest.fixture
     def uf_df(self):
-        def conv(text):
+        def conv(text, prompt):
             return [
-                {"role": "user", "content": "ignored"},
+                {"role": "user", "content": prompt},
                 {"role": "assistant", "content": text},
             ]
 
         return pd.DataFrame(
             {
                 "prompt": ["p1", "p2", "p1", "p3"],
-                "chosen": [conv("c1"), conv("c2"), conv("c1-dup"), conv("c3")],
-                "rejected": [conv("r1"), conv("r2"), conv("r1-dup"), conv("r3")],
+                "chosen": [
+                    conv(c, p)
+                    for c, p in zip(
+                        ("c1", "c2", "c1-dup", "c3"), ("p1", "p2", "p1", "p3")
+                    )
+                ],
+                "rejected": [
+                    conv(r, p)
+                    for r, p in zip(
+                        ("r1", "r2", "r1-dup", "r3"), ("p1", "p2", "p1", "p3")
+                    )
+                ],
             }
         )
 
@@ -106,15 +120,17 @@ class TestLoadUltrafeedback:
                 assert row["response_b"][0].startswith("c")  # chosen on side B
 
     def test_dedup_by_prompt(self, uf_df):
-        df = load_ultrafeedback(uf_df, seed=0)
+        assert len(load_ultrafeedback(uf_df, seed=0)) == len(uf_df)
+        df = load_ultrafeedback(uf_df, seed=0, dedup_by_prompt=True)
         assert len(df) == 3  # p1 duplicate removed
+        assert df.attrs["preprocessing"]["dropped_rows"] == 1
 
     def test_seed_controls_assignment(self, uf_df):
         a = load_ultrafeedback(uf_df, seed=0)
         b = load_ultrafeedback(uf_df, seed=0)
         pd.testing.assert_frame_equal(a, b)
 
-    def test_uses_last_assistant_message(self):
+    def test_retains_system_and_all_rounds(self):
         def conv(first, final):
             return [
                 {"role": "system", "content": "system"},
@@ -126,13 +142,18 @@ class TestLoadUltrafeedback:
 
         source = pd.DataFrame(
             {
-                "prompt": ["p"],
+                "prompt": ["first prompt"],
                 "chosen": [conv("old chosen", "final chosen")],
                 "rejected": [conv("old rejected", "final rejected")],
             }
         )
         row = load_ultrafeedback(source, seed=0).iloc[0]
+        assert row["prompt"] == ["[System]\nsystem\n[User]\nfirst prompt", "follow-up"]
         assert {row["response_a"][0], row["response_b"][0]} == {
+            "old chosen",
+            "old rejected",
+        }
+        assert {row["response_a"][1], row["response_b"][1]} == {
             "final chosen",
             "final rejected",
         }

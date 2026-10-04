@@ -17,7 +17,7 @@ visible, each marked with an explicit ellipsis. The packing guarantees:
    (``min_tail_budget`` tokens), the round is dropped entirely rather than
    shown misleadingly.
 
-With default settings the output is byte-for-byte identical to the
+With explicit competition_v1 settings the output is byte-for-byte identical to the
 tokenization used by the 4th-place (gold medal) solution of the Kaggle
 "LMSYS — Chatbot Arena Human Preference Predictions" competition; this is
 enforced by a golden test against the original implementation
@@ -32,7 +32,7 @@ tokenizer does).
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence
 
 
@@ -40,7 +40,8 @@ from typing import Any, Dict, List, Optional, Sequence
 class PackerConfig:
     """Configuration for :class:`PairPacker`.
 
-    The defaults reproduce the competition-winning setup exactly.
+    balanced_v2 reserves framing separately and retains content diagnostics.
+    competition_v1 preserves the original framing-inclusive algorithm.
 
     Attributes:
         max_length: Hard token budget per packed example (including BOS/EOS
@@ -75,8 +76,32 @@ class PackerConfig:
     response_b_prefix: str = "\n\n### Response B:\n{text}"
     add_bos: bool = True
     add_eos: bool = True
+    packing_format: str = "balanced_v2"
 
     def __post_init__(self) -> None:
+        if (
+            not isinstance(self.max_length, int)
+            or isinstance(self.max_length, bool)
+            or self.max_length <= 0
+        ):
+            raise ValueError("max_length must be a positive integer")
+        if (
+            not isinstance(self.min_tail_budget, int)
+            or isinstance(self.min_tail_budget, bool)
+            or self.min_tail_budget < 0
+        ):
+            raise ValueError("min_tail_budget must be a non-negative integer")
+        for name in ("add_bos", "add_eos"):
+            if not isinstance(getattr(self, name), bool):
+                raise ValueError(f"{name} must be a boolean")
+        for name in (
+            "ellipsis",
+            "final_instruction",
+            "round_header",
+            "first_round_header",
+        ):
+            if not isinstance(getattr(self, name), str):
+                raise ValueError(f"{name} must be a string")
         if len(self.ratios) != 3:
             raise ValueError(f"ratios must have 3 entries, got {len(self.ratios)}")
         try:
@@ -89,6 +114,19 @@ class PackerConfig:
         if total <= 0.0 or total > 1.0 + 1e-9:
             raise ValueError(f"ratios must sum to <= 1.0 and be > 0.0, got {total}")
         self.ratios = ratios
+        if self.packing_format not in ("balanced_v2", "competition_v1"):
+            raise ValueError("packing_format must be balanced_v2 or competition_v1")
+        if self.packing_format == "balanced_v2" and any(value == 0 for value in ratios):
+            raise ValueError("balanced_v2 ratios must be positive for all three fields")
+        for name in ("prompt_prefix", "response_a_prefix", "response_b_prefix"):
+            template = getattr(self, name)
+            if not isinstance(template, str) or template.count("{text}") != 1:
+                raise ValueError(
+                    f"{name} must contain exactly one {{text}} placeholder"
+                )
+            template.format(text="")
+        for name in ("round_header", "first_round_header"):
+            getattr(self, name).format(round=1)
         if self.max_length <= 0:
             raise ValueError("max_length must be positive")
         if self.min_tail_budget < 0:
@@ -104,10 +142,25 @@ class PackedExample:
     rounds_kept: int
     rounds_total: int
     truncated: bool
+    fields: List[Dict[str, Any]] = field(default_factory=list)
+    usable: bool = True
+    warnings: List[str] = field(default_factory=list)
 
     @property
     def dropped_rounds(self) -> int:
         return self.rounds_total - self.rounds_kept
+
+    def diagnostics(self) -> Dict[str, Any]:
+        return {
+            "tokens": len(self.input_ids),
+            "rounds_kept": self.rounds_kept,
+            "rounds_total": self.rounds_total,
+            "dropped_rounds": self.dropped_rounds,
+            "truncated": self.truncated,
+            "fields": self.fields,
+            "usable": self.usable,
+            "warnings": self.warnings,
+        }
 
 
 class PairPacker:
@@ -160,6 +213,143 @@ class PairPacker:
         return self.tokenizer(text, add_special_tokens=False)["input_ids"]
 
     def pack(
+        self,
+        prompts: Sequence[str],
+        responses_a: Sequence[str],
+        responses_b: Sequence[str],
+    ) -> PackedExample:
+        from .validation import validate_rounds
+
+        prompts, responses_a, responses_b = validate_rounds(
+            prompts, responses_a, responses_b
+        )
+        if self.config.packing_format == "competition_v1":
+            result = self._pack_competition(prompts, responses_a, responses_b)
+            result.usable = result.rounds_kept > 0 and any(
+                a.strip() or b.strip()
+                for a, b in zip(
+                    responses_a[: result.rounds_kept], responses_b[: result.rounds_kept]
+                )
+            )
+            result.warnings = [
+                "legacy framing-inclusive truncation; content retention is not guaranteed"
+            ]
+            return result
+        return self._pack_balanced(prompts, responses_a, responses_b)
+
+    def _pack_balanced(self, prompts, responses_a, responses_b) -> PackedExample:
+        cfg = self.config
+        ids = [self._bos] if self._bos is not None else []
+        used = self._base_cost
+        fields = []
+        kept = 0
+        warnings = []
+        for index, values in enumerate(zip(prompts, responses_a, responses_b)):
+            header = self._encode(
+                (cfg.first_round_header if index == 0 else cfg.round_header).format(
+                    round=index + 1
+                )
+            )
+            content = [self._encode(text) for text in values]
+            framing = [
+                tuple(self._encode(part) for part in template.split("{text}"))
+                for template in (
+                    cfg.prompt_prefix,
+                    cfg.response_a_prefix,
+                    cfg.response_b_prefix,
+                )
+            ]
+            fixed = len(header) + sum(
+                len(before) + len(after) for before, after in framing
+            )
+            sizes = [len(tokens) for tokens in content]
+            allocation = list(sizes)
+            partial = used + fixed + sum(sizes) > cfg.max_length
+            if partial:
+                budget = cfg.max_length - used - fixed - 3 * len(self._ellipsis_ids)
+                required = sum(size > 0 for size in sizes)
+                if budget < max(cfg.min_tail_budget, required):
+                    break
+                allocation = [int(size > 0) for size in sizes]
+                remaining = budget - sum(allocation)
+                # Capped proportional allocation redistributes unused short-field
+                # tokens; framing/markers never consume a field's content share.
+                while remaining:
+                    active = [i for i in range(3) if allocation[i] < sizes[i]]
+                    if not active:
+                        break
+                    weight = sum(cfg.ratios[i] for i in active)
+                    grants = [
+                        min(
+                            sizes[i] - allocation[i],
+                            max(1, int(remaining * cfg.ratios[i] / weight)),
+                        )
+                        for i in active
+                    ]
+                    for i, grant in zip(active, grants):
+                        grant = min(grant, remaining)
+                        allocation[i] += grant
+                        remaining -= grant
+            ids.extend(header)
+            detail = {"round": index + 1}
+            for name, tokens, (before, after), limit in zip(
+                ("prompt", "response_a", "response_b"), content, framing, allocation
+            ):
+                cut = limit < len(tokens)
+                ids.extend(
+                    before
+                    + tokens[:limit]
+                    + (self._ellipsis_ids if cut else [])
+                    + after
+                )
+                detail[name] = {
+                    "original_tokens": len(tokens),
+                    "kept_tokens": limit,
+                    "truncated": cut,
+                }
+            fields.append(detail)
+            used = self._base_cost + len(ids) - int(self._bos is not None)
+            kept += 1
+            if partial:
+                break
+        ids.extend(self._final_ids)
+        if self._eos is not None:
+            ids.append(self._eos)
+        effective = any(
+            a.strip() or b.strip()
+            for a, b in zip(responses_a[:kept], responses_b[:kept])
+        )
+        usable = kept > 0 and effective
+        if not usable:
+            warnings.append("no effective comparison content fits the budget")
+        if kept and not any(prompt.strip() for prompt in prompts[:kept]):
+            warnings.append("empty prompt context")
+        if responses_a == responses_b:
+            warnings.append(
+                "identical responses; probabilities remain uncalibrated model output"
+            )
+        if not any(text.strip() for text in responses_a) or not any(
+            text.strip() for text in responses_b
+        ):
+            warnings.append("empty response; no fixed probability heuristic applied")
+        assert len(ids) <= cfg.max_length
+        return PackedExample(
+            ids,
+            [1] * len(ids),
+            kept,
+            len(prompts),
+            kept < len(prompts)
+            or any(
+                value[name]["truncated"]
+                for value in fields
+                for name in ("prompt", "response_a", "response_b")
+            ),
+            fields,
+            usable,
+            warnings,
+        )
+
+    def _pack_competition(
         self,
         prompts: Sequence[str],
         responses_a: Sequence[str],
@@ -268,6 +458,8 @@ class PairPacker:
             example["prompt"], example["response_a"], example["response_b"]
         ):
             packed = self.pack(ps, ras, rbs)
+            if self.config.packing_format == "balanced_v2" and not packed.usable:
+                raise ValueError("no effective comparison content fits the budget")
             input_ids.append(packed.input_ids)
             attention_mask.append(packed.attention_mask)
 

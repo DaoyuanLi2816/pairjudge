@@ -1,60 +1,64 @@
 name: Release to PyPI
-
-# Publishes to PyPI when a GitHub release is published.
-# Uses PyPI trusted publishing (no token stored in the repo):
-# https://docs.pypi.org/trusted-publishers/ — register this repo + workflow
-# under the pairjudge project on PyPI once.
-
+# The existing Trusted Publisher remains bound to this workflow, without an environment.
+# Attach the qualified wheel/sdist/SHA256SUMS to the draft release, then publish it.
 on:
   release:
     types: [published]
-
 permissions:
   contents: read
-
 jobs:
-  build:
+  qualify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
-          cache: pip
-      - name: Verify release tag
+          python-version: '3.12'
+      - name: Fetch exact candidate assets
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          gh release download "$TAG" --pattern '*.whl' --pattern '*.tar.gz' --pattern SHA256SUMS --dir candidate
+          python scripts/check_distributions.py candidate --verify
+      - name: Check source, tag and distribution versions
+        env:
+          TAG: ${{ github.event.release.tag_name }}
         run: |
           python - <<'PY'
-          import os
-          import tomllib
+          import os, tomllib, zipfile, email
           from pathlib import Path
-
-          version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
-          expected = f"v{version}"
-          actual = os.environ["RELEASE_TAG"]
-          if actual != expected:
-              raise SystemExit(f"release tag {actual!r} does not match {expected!r}")
+          version = tomllib.loads(Path('pyproject.toml').read_text())['project']['version']
+          assert os.environ['TAG'] == 'v' + version
+          with zipfile.ZipFile(next(Path('candidate').glob('*.whl'))) as archive:
+              metadata = email.message_from_bytes(archive.read(next(name for name in archive.namelist() if name.endswith('.dist-info/METADATA'))))
+          assert metadata['Version'] == version and metadata['Name'] == 'pairjudge'
           PY
-      - name: Test
+      - name: Test the installed candidate outside the checkout
         run: |
-          python -m pip install --upgrade pip
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -e .[test]
-          pytest -q
-      - run: |
-          python -m pip install build twine
-          python -m build
-          twine check dist/*
+          pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install pytest pytest-cov twine
+          python - <<'PY'
+          import subprocess, sys
+          from pathlib import Path
+          wheel = next(Path('candidate').glob('*.whl')).resolve()
+          subprocess.check_call([sys.executable, '-m', 'pip', 'install', str(wheel) + '[test]', 'transformers==5.18.0', 'peft==0.21.2', 'accelerate==1.15.0'])
+          PY
+          twine check candidate/*.whl candidate/*.tar.gz
+          cp -r tests "$RUNNER_TEMP/tests"
+          cd "$RUNNER_TEMP"
+          pytest -q tests --import-mode=importlib
+          pairjudge --version
       - uses: actions/upload-artifact@v7
         with:
-          name: dist
-          path: dist/
+          name: qualified-distributions
+          path: |
+            candidate/*.whl
+            candidate/*.tar.gz
           if-no-files-found: error
-
   publish:
-    needs: build
+    needs: qualify
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -62,6 +66,17 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: dist
-          path: dist/
+          name: qualified-distributions
+          path: dist
       - uses: pypa/gh-action-pypi-publish@release/v1
+  verify:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+      - run: python scripts/verify_public.py --candidate-hashes docs/reports/v0.3.0/package-sha256.json --install

@@ -1,0 +1,35 @@
+{
+  "version": "0.3.0",
+  "baseline_tests": 71,
+  "source_tests": {
+    "minimum": 83,
+    "current": 83,
+    "core_python39_no_torch": 61,
+    "minimum_statement_coverage_percent": 79
+  },
+  "installed_wheel": {
+    "tests": 83,
+    "outside_checkout": true,
+    "stack": "Torch 2.14.1+cpu / Transformers 5.18.0 / PEFT 0.21.2 / Accelerate 1.15.0"
+  },
+  "installed_sdist": {
+    "tests": 27,
+    "outside_checkout": true,
+    "actual_hard_soft_train_export_pseudo_cli_http": true,
+    "stack": "Torch 2.6.0+cpu / Transformers 4.57.6 / PEFT 0.18.1 / Accelerate 1.12.0"
+  },
+  "candidate_sha256": {
+    "pairjudge-0.3.0-py3-none-any.whl": "67a2793e825d6a765576ed38eefe785613a6445924a65a5402d2a905ffefdb90",
+    "pairjudge-0.3.0.tar.gz": "13b11ecd22b45ee5ee388a53aa05259145275356fa181684e32ced1afbdd4a39"
+  },
+  "public_model_receipt": "model-public-verification.json",
+  "cancelled_cpu_diagnostic_is_not_qualification": true,
+  "author": "Daoyuan Li",
+  "installed_core_sdist": {
+    "tests": 61,
+    "python": "3.9.25",
+    "torch_absent": true,
+    "outside_checkout": true
+  },
+  "candidate_rebuild": "First candidate discarded after UltraFeedback default retention correction. Final files rebuilt and reinstalled; wheel 83 / sdist 27 / core 61 passed."
+}
